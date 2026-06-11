@@ -12,7 +12,7 @@ const up = async (db) => {
             specifications TEXT,
             image_url      VARCHAR(255)   DEFAULT NULL COMMENT 'Filename saja, bukan full URL',
             created_at     DATETIME       DEFAULT CURRENT_TIMESTAMP,
-            updated_at     DATETIME       DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+            updated_at     DATETIME       DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             INDEX idx_brand (brand),
             INDEX idx_product_name (product_name)

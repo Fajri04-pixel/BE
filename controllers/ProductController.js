@@ -7,6 +7,8 @@ const uploadsDir = path.join(__dirname, '..', 'uploads');
 // ─── Helper: tambahkan full URL ke image_url ───────────────────────────────
 const withImageUrl = (product) => ({
     ...product,
+    price:     product.price     ? parseFloat(product.price)     : 0,
+    stock:     product.stock     ? parseInt(product.stock)       : 0,
     image_url: product.image_url
         ? (product.image_url.startsWith('http')
             ? product.image_url
@@ -48,20 +50,39 @@ exports.show = async (req, res) => {
 
 // ─── POST /api/products ────────────────────────────────────────────────────
 exports.store = async (req, res) => {
-    const { product_name, brand, price, stock, description, specifications } = req.body;
+    // Support form-data (multer) dan JSON body
+    // Toleran terhadap variasi nama field
+    // Trim semua spasi dari key dan value
+    const rawBody = req.body || {};
+    const body = Object.fromEntries(
+        Object.entries(rawBody).map(([k, v]) => [k.trim(), typeof v === 'string' ? v.trim() : v])
+    );
+    const product_name   = body.product_name   || body.name        || body.productName;
+    const brand          = body.brand          || body.Brand       || body.merk;
+    const price          = body.price          || body.harga       || body.Price;
+    const stock          = body.stock          || body.stok        || body.Stock        || 0;
+    const description    = body.description    || body.deskripsi   || '';
+    const specifications = body.specifications || body.spesifikasi || '';
+
+    console.log('📦 CREATE PRODUCT body:', JSON.stringify(body));
+    console.log('📦 Files:', req.files ? req.files.map(f=>f.fieldname) : 'none');
 
     if (!product_name || !brand || !price) {
-        return res.status(400).json({ success: false, message: 'Nama produk, brand, dan harga wajib diisi.' });
+        return res.status(400).json({
+            success: false,
+            message: 'Nama produk, brand, dan harga wajib diisi.',
+            hint: 'Gunakan field: product_name, brand, price (form-data atau JSON)',
+            received: { product_name: product_name||null, brand: brand||null, price: price||null }
+        });
     }
 
-    // Ambil file dari field manapun
     const uploadedFile = req.files && req.files.length > 0 ? req.files[0] : null;
     const image_url    = uploadedFile ? uploadedFile.filename : null;
 
     try {
         const [result] = await req.db.query(
-            'INSERT INTO products (product_name, brand, price, stock, description, specifications, image_url, created_at) VALUES (?,?,?,?,?,?,?,NOW())',
-            [product_name, brand, parseInt(price), parseInt(stock) || 0, description || '', specifications || '', image_url]
+            'INSERT INTO products (product_name, brand, price, stock, description, specifications, image_url, created_at, updated_at) VALUES (?,?,?,?,?,?,?,NOW(),NOW())',
+            [product_name, brand, parseInt(price), parseInt(stock)||0, description, specifications, image_url]
         );
         const [rows] = await req.db.query('SELECT * FROM products WHERE id = ?', [result.insertId]);
         console.log('✅ Product created:', rows[0].product_name);
@@ -74,11 +95,25 @@ exports.store = async (req, res) => {
 
 // ─── PUT /api/products/:id ─────────────────────────────────────────────────
 exports.update = async (req, res) => {
-    const { product_name, brand, price, stock, description, specifications } = req.body;
-    const productId = req.params.id;
+    const rawBody = req.body || {};
+    const body = Object.fromEntries(
+        Object.entries(rawBody).map(([k, v]) => [k.trim(), typeof v === 'string' ? v.trim() : v])
+    );
+    const product_name   = body.product_name   || body.name        || body.productName;
+    const brand          = body.brand          || body.Brand       || body.merk;
+    const price          = body.price          || body.harga       || body.Price;
+    const stock          = body.stock          || body.stok        || body.Stock        || 0;
+    const description    = body.description    || body.deskripsi   || '';
+    const specifications = body.specifications || body.spesifikasi || '';
+    const productId      = req.params.id;
 
     if (!product_name || !brand || !price) {
-        return res.status(400).json({ success: false, message: 'Nama produk, brand, dan harga wajib diisi.' });
+        return res.status(400).json({
+            success: false,
+            message: 'Nama produk, brand, dan harga wajib diisi.',
+            hint: 'Gunakan field: product_name, brand, price (tanpa spasi di nama field)',
+            received: { product_name: product_name||null, brand: brand||null, price: price||null }
+        });
     }
 
     try {

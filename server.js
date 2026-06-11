@@ -88,6 +88,11 @@ app.use((req, res, next) => {
         req.path.startsWith('/api/upload');
 
     if (isProductUpload) {
+        // Cek Content-Type — kalau JSON, skip multer langsung next
+        const ct = req.headers['content-type'] || '';
+        if (ct.includes('application/json')) {
+            return next();
+        }
         return uploadProduct(req, res, (err) => {
             if (err instanceof multer.MulterError) {
                 return res.status(400).json({ success: false, message: err.code === 'LIMIT_FILE_SIZE' ? 'File maksimal 5 MB.' : err.message });
